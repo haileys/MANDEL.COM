@@ -118,7 +118,8 @@ mandel:
     pop cx
     loop row
 
-    jmp L
+    cli
+    hlt
 
 
 x_min: dq -2.0

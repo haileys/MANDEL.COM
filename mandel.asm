@@ -33,10 +33,8 @@ pix:
     faddp
     ; C is st0 + st1*i
 
-    ; fldz ; init z0
-    ; fldz
-    fld st1 ; Z = C temporarily!
-    fld st1
+    fldz ; init z0
+    fldz
 
     mov cx, [iter]
 mandel:

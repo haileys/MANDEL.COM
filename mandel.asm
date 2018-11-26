@@ -8,26 +8,7 @@ org 0x100
     int 0x10
     mov [old_vga_mode], al
 
-    ; query VESA BIOS
-    mov ax, 0x4f00
-    mov di, vbe_info
-    int 0x10
-
-    ; if AX != 0x004f VESA BIOS is not available
-    cmp ax, 0x004f
-    jne exit
-
-    ; if vbe_info.signature is not "VESA" VBE 2.0 is not available
-    mov eax, [vbe_info.signature]
-    cmp eax, "VESA"
-    jne exit
-
-    ; test VBE version
-    mov ax, [vbe_info + 4]
-    cmp ax, 0x0200
-    jl exit
-
-    ; load mode number we want to find
+    ; query info for the VESA mode we want
     mov ax, 0x4f01
     mov cx, target_vbe_mode
     mov di, vbe_mode_info
@@ -260,6 +241,7 @@ exit:
     mov al, [old_vga_mode]
     int 0x10
     int 0x20
+
 
 x_min: dq -2.0
 x_siz: dq 3.0

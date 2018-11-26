@@ -12,10 +12,30 @@ org 0x100
     mov ax, 0x13
     int 0x10
 
-    mov ax, 0xa000
-    mov es, ax
+    ; set up gdt offset in gdtr
+    mov eax, ds
+    shl eax, 4
+    add eax, gdt
+    mov [gdtr.offset], eax
+
+    ; load gdt to prepare to enter protected mode
+    cli
+    lgdt [gdtr]
+
+    ; enter protected mode
+    mov eax, cr0
+    or al, 1
+    mov cr0, eax
+
+    ; load 32 bit descriptor into es
+    mov bx, 0x08
+    mov es, bx
+
+    ; leave protected mode, now in unreal mode
+    and al, ~1
+    mov cr0, eax
 L:
-    xor di, di
+    mov edi, 0xa0000
     mov word [y], 0
     mov cx, 200
 row:
@@ -112,8 +132,8 @@ mandel:
     fstp st0
     fstp st0
 
-    mov al, cl
-    stosb
+    mov [es:edi], cl
+    inc edi
 
     inc word [x]
     pop cx
@@ -144,6 +164,24 @@ y_inc: dq 0.01 ; 2.0 / 200
 vga_mode: db 0
 iter: dw 31
 threshsq: dq 4.0
+
+gdtr:
+    dw gdt.end - gdt - 1
+.offset:
+    dd 0
+
+gdt:
+    ; entry 0
+    dq 0
+    ; entry 1
+    dw 0xffff ; limit 0xfffff, 0:15
+    dw 0x0000 ; base 0, 0:15
+    db 0x00   ; base 0, 16:23
+    db 0x92   ; present | data | rw
+    db 0xcf   ; 32 bit, 4 KiB granularity, limit 0xfffff 16:19
+    db 0x00   ; base 0, 24:31
+.end:
+
 
 x: dw 0
 y: dw 0

@@ -85,11 +85,10 @@ mandel:
     fld st1
     fmul st0
     faddp
-    fsqrt
-    ; |Z| = st0
+    ; |Z|^2 = st0
 
     ; see if we've escaped
-    fld qword [thresh]
+    fld qword [threshsq]
     fcomi
 
     ; pop twice to retain loop invariant
@@ -127,9 +126,9 @@ x_inc: dq 0.009375 ; 3.0 / 320
 y_min: dq -1.0
 y_inc: dq 0.01 ; 2.0 / 200
 
-thresh: dq 2.0
 
 iter: dw 31
+threshsq: dq 4.0
 
 x: dw 0
 y: dw 0

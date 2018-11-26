@@ -29,7 +29,7 @@ org 0x100
 
     ; load mode number we want to find
     mov ax, 0x4f01
-    mov cx, 0x0118
+    mov cx, target_vbe_mode
     mov di, vbe_mode_info
     int 0x10
 
@@ -39,7 +39,7 @@ org 0x100
 
     ; set mode
     mov ax, 0x4f02
-    mov bx, 0x118 | (1 << 14) ; linear frame buffer
+    mov bx, target_vbe_mode | (1 << 14) ; linear frame buffer
     int 0x10
 
     ; test error
@@ -267,7 +267,7 @@ y_min: dq -1.0
 y_siz: dq 2.0
 
 old_vga_mode: db 0
-cur_vga_mode: db 0
+target_vbe_mode equ 0x011b
 iter: dw 16*6-1
 threshsq: dq 4.0
 

@@ -3,7 +3,13 @@ org 0x100
 
     fninit
 
-    mov al, 0x13
+    ; get video mode
+    mov ah, 0x0f
+    int 0x10
+    mov [vga_mode], al
+
+    ; switch to mode 13h
+    mov ax, 0x13
     int 0x10
 
     mov ax, 0xa000
@@ -115,10 +121,19 @@ mandel:
 
     inc word [y]
     pop cx
-    loop row
+    dec cx
+    test cx, cx
+    jnz row
 
-    cli
-    hlt
+waitkey:
+    mov ah, 0x01
+    int 0x21
+
+exit:
+    xor ah, ah
+    mov al, [vga_mode]
+    int 0x10
+    int 0x20
 
 
 x_min: dq -2.0
@@ -126,7 +141,7 @@ x_inc: dq 0.009375 ; 3.0 / 320
 y_min: dq -1.0
 y_inc: dq 0.01 ; 2.0 / 200
 
-
+vga_mode: db 0
 iter: dw 31
 threshsq: dq 4.0
 

@@ -10,4 +10,4 @@ A Mandelbrot visualiser for MS-DOS
 
 * Pretty colours
 
-![](https://charlie.su/screen_shot_2018_11_26_at_23.26.36-026353a679f5b4.png)
+![](https://charlie.su/screen_shot_2018_11_27_at_00.01.32-e55fe58ced8497.png)

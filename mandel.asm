@@ -245,8 +245,8 @@ exit:
 
 x_min: dq -2.0
 x_siz: dq 3.0
-y_min: dq -1.0
-y_siz: dq 2.0
+y_min: dq -1.2
+y_siz: dq 2.4
 
 old_vga_mode: db 0
 target_vbe_mode equ 0x011b

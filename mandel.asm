@@ -3,14 +3,52 @@ org 0x100
 
     fninit
 
-    ; get video mode
+    ; get current video mode
     mov ah, 0x0f
     int 0x10
-    mov [vga_mode], al
+    mov [old_vga_mode], al
 
-    ; switch to mode 13h
-    mov ax, 0x13
+    ; query VESA BIOS
+    mov ax, 0x4f00
+    mov di, vbe_info
     int 0x10
+
+    ; if AX != 0x004f VESA BIOS is not available
+    cmp ax, 0x004f
+    jne exit
+
+    ; if vbe_info.signature is not "VESA" VBE 2.0 is not available
+    mov eax, [vbe_info.signature]
+    cmp eax, "VESA"
+    jne exit
+
+    ; test VBE version
+    mov ax, [vbe_info + 4]
+    cmp ax, 0x0200
+    jl exit
+
+    ; load mode number we want to find
+    mov ax, 0x4f01
+    mov cx, 0x0118
+    mov di, vbe_mode_info
+    int 0x10
+
+    ; test error
+    cmp ax, 0x004f
+    jne exit
+
+    ; set mode
+    mov ax, 0x4f02
+    mov bx, 0x118 | (1 << 14) ; linear frame buffer
+    int 0x10
+
+    ; test error
+    cmp ax, 0x4f
+    jne exit
+
+    ; read bits of mode info that we need
+    mov ax, [vbe_mode_bytes_per_line]
+    mov edi, [vbe_mode_framebuffer]
 
     ; set up gdt offset in gdtr
     mov eax, ds
@@ -27,42 +65,48 @@ org 0x100
     or al, 1
     mov cr0, eax
 
-    ; load 32 bit descriptor into es
+    ; load 32 bit descriptor into fs
     mov bx, 0x08
-    mov es, bx
+    mov fs, bx
 
     ; leave protected mode, now in unreal mode
     and al, ~1
     mov cr0, eax
 L:
-    mov edi, 0xa0000
     mov word [y], 0
-    mov cx, 200
+    mov cx, [vbe_mode_height]
 row:
     push cx
 
+    movzx eax, word [y]
+    movzx edx, word [vbe_mode_bytes_per_line]
+    mul edx
+    mov edi, [vbe_mode_framebuffer]
+    add edi, eax
+
     mov word [x], 0
-    mov cx, 320
+    mov cx, [vbe_mode_width]
 pix:
     push cx
 
     ; calculate imaginary component
-    fld qword [y_inc]
+    fld qword [y_siz]
+    fidiv word [vbe_mode_height]
     fimul word [y]
-    fld qword [y_min]
-    faddp
+    fadd qword [y_min]
 
     ; calculate real component
-    fld qword [x_inc]
+    fld qword [x_siz]
+    fidiv word [vbe_mode_width]
     fimul word [x]
-    fld qword [x_min]
-    faddp
+    fadd qword [x_min]
     ; C is st0 + st1*i
 
     fldz ; init z0
     fldz
 
     mov cx, [iter]
+    movzx ecx, cx
 mandel:
     ; LOOP INVARIANT:
     ; Z = st0 + st1*i
@@ -132,12 +176,74 @@ mandel:
     fstp st0
     fstp st0
 
-    mov [es:edi], cl
-    inc edi
+    test cx, cx
+    jz .black
+    cmp cx, 16*1
+    jl .c1
+    cmp cx, 16*2
+    jl .c2
+    cmp cx, 16*3
+    jl .c3
+    cmp cx, 16*4
+    jl .c4
+    cmp cx, 16*5
+    jl .c5
+    jmp .c6
+.black:
+    xor eax, eax
+    jmp .paint
+.c1:
+    mov eax, 0xff0000
+    shl ecx, 12
+    or eax, ecx
+    jmp .paint
+.c2:
+    sub cl, 16*1
+    not cl
+    and cl, 15
+    shl ecx, 20
+    mov eax, 0x00ff00
+    or eax, ecx
+    jmp .paint
+.c3:
+    mov eax, 0x00ff00
+    shl ecx, 4
+    or eax, ecx
+    jmp .paint
+.c4:
+    sub cl, 16*1
+    not cl
+    and cl, 15
+    shl ecx, 12
+    mov eax, 0x0000ff
+    or eax, ecx
+    jmp .paint
+.c5:
+    mov eax, 0x0000ff
+    shl ecx, 20
+    or eax, ecx
+    jmp .paint
+.c6:
+    sub cl, 16*1
+    not cl
+    and cl, 15
+    shl ecx, 4
+    mov eax, 0xff0000
+    or eax, ecx
+    jmp .paint
+.paint:
+    mov [fs:edi+2], al
+    shr eax, 8
+    mov [fs:edi+1], al
+    shr eax, 8
+    mov [fs:edi], al
+    add edi, 3
 
     inc word [x]
     pop cx
-    loop pix
+    dec cx
+    test cx, cx
+    jnz pix
 
     inc word [y]
     pop cx
@@ -151,18 +257,18 @@ waitkey:
 
 exit:
     xor ah, ah
-    mov al, [vga_mode]
+    mov al, [old_vga_mode]
     int 0x10
     int 0x20
 
-
 x_min: dq -2.0
-x_inc: dq 0.009375 ; 3.0 / 320
+x_siz: dq 3.0
 y_min: dq -1.0
-y_inc: dq 0.01 ; 2.0 / 200
+y_siz: dq 2.0
 
-vga_mode: db 0
-iter: dw 31
+old_vga_mode: db 0
+cur_vga_mode: db 0
+iter: dw 16*6-1
 threshsq: dq 4.0
 
 gdtr:
@@ -182,6 +288,17 @@ gdt:
     db 0x00   ; base 0, 24:31
 .end:
 
+vbe_info:
+    .signature db "VBE2"
+    .data: ; resb 512 - 4, just let this run off the end of the program
+
+end equ vbe_info.data + 512 - 4
+
+vbe_mode_info equ end + 0
+vbe_mode_bytes_per_line equ vbe_mode_info + 16
+vbe_mode_width          equ vbe_mode_info + 18
+vbe_mode_height         equ vbe_mode_info + 20
+vbe_mode_framebuffer    equ vbe_mode_info + 40
 
 x: dw 0
 y: dw 0

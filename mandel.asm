@@ -27,10 +27,6 @@ org 0x100
     cmp ax, 0x4f
     jne exit
 
-    ; read bits of mode info that we need
-    mov ax, [vbe_mode_bytes_per_line]
-    mov edi, [vbe_mode_framebuffer]
-
     ; set up gdt offset in gdtr
     mov eax, ds
     shl eax, 4

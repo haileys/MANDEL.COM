@@ -246,7 +246,7 @@ y_siz: dq 2.4
 
 old_vga_mode: db 0
 target_vbe_mode equ 0x011b
-iter: dw 16*6-1
+iter: dw 128
 threshsq: dq 4.0
 
 gdtr:

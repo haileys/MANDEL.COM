@@ -49,6 +49,9 @@ org 0x100
     ; leave protected mode, now in unreal mode
     and al, ~1
     mov cr0, eax
+
+    ; restore interrupts
+    sti
 L:
     mov word [y], 0
     mov cx, [vbe_mode_height]

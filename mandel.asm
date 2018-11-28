@@ -85,8 +85,7 @@ pix:
     fldz ; init z0
     fldz
 
-    mov cx, [iter]
-    movzx ecx, cx
+    xor cx, cx
 mandel:
     ; LOOP INVARIANT:
     ; Z = st0 + st1*i
@@ -148,7 +147,9 @@ mandel:
     ; bail out if we have escaped
     jb .end
 
-    loop mandel
+    inc cx
+    cmp cx, [iter]
+    jl mandel
 .end:
     ; clear FPU stack
     fstp st0
@@ -156,8 +157,14 @@ mandel:
     fstp st0
     fstp st0
 
-    test cx, cx
-    jz .black
+    ; render iteration limit as black:
+    cmp cx, [iter]
+    je .black
+
+    bt cx, 4
+    jnc .colorswitch
+    xor cx, 15
+.colorswitch:
     cmp cx, 16*1
     jl .c1
     cmp cx, 16*2
@@ -168,50 +175,40 @@ mandel:
     jl .c4
     cmp cx, 16*5
     jl .c5
-    jmp .c6
+    cmp cx, 16*6
+    jl .c6
+    sub cx, 16*6
+    jmp .colorswitch
 .black:
     xor eax, eax
+    xor ecx, ecx
     jmp .paint
 .c1:
+    shl ecx, 4
     mov eax, 0xff0000
-    shl ecx, 12
-    or eax, ecx
     jmp .paint
 .c2:
-    sub cl, 16*1
-    not cl
-    and cl, 15
+    mov eax, 0x0000ff
     shl ecx, 20
-    mov eax, 0x00ff00
-    or eax, ecx
     jmp .paint
 .c3:
-    mov eax, 0x00ff00
-    shl ecx, 4
-    or eax, ecx
-    jmp .paint
-.c4:
-    sub cl, 16*1
-    not cl
-    and cl, 15
     shl ecx, 12
     mov eax, 0x0000ff
-    or eax, ecx
+    jmp .paint
+.c4:
+    mov eax, 0x00ff00
+    shl ecx, 4
     jmp .paint
 .c5:
-    mov eax, 0x0000ff
     shl ecx, 20
-    or eax, ecx
+    mov eax, 0x00ff00
     jmp .paint
 .c6:
-    sub cl, 16*1
-    not cl
-    and cl, 15
-    shl ecx, 4
     mov eax, 0xff0000
-    or eax, ecx
-    jmp .paint
+    shl ecx, 12
 .paint:
+    or eax, ecx
+
     mov [fs:edi+2], al
     shr eax, 8
     mov [fs:edi+1], al
